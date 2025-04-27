@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:trabalho_mobile/models/entry.dart';
 import 'package:trabalho_mobile/utils/app_colors.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:trabalho_mobile/components/entry/add_entry_dialog.dart';
+import 'package:trabalho_mobile/utils/app_icons.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,22 +42,17 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
     _entriesBox = Hive.box<Entry>('entries');
   }
 
-  void _addEntry() {
-    final entry = Entry(
-      title: 'Teste',
-      description: 'New Entry',
-      amount: 20.0,
-      date: DateTime.now(),
-      iconId: 1,
+  void _showAddEntryDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AddEntryDialog(entriesBox: _entriesBox),
     );
-    _entriesBox.add(entry);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: Container(
@@ -86,7 +84,6 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
           ),
         ),
       ),
-
       body: Column(
         children: [
           Expanded(
@@ -94,14 +91,102 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
               valueListenable: _entriesBox.listenable(),
               builder: (context, Box<Entry> box, child) {
                 final entries = box.values.toList();
+          
+                Map<String, List<Entry>> groupedEntries = {};
+                for (var entry in entries) {
+                  String formattedDate = DateFormat('dd/MM/yyyy').format(entry.date);
+                  if (!groupedEntries.containsKey(formattedDate)) {
+                    groupedEntries[formattedDate] = [];
+                  }
+                  groupedEntries[formattedDate]!.add(entry);
+                }
+
+                List<String> sortedDates = groupedEntries.keys.toList()
+                  ..sort((a, b) => b.compareTo(a));
+
                 return ListView.builder(
-                  itemCount: entries.length,
+                  padding: const EdgeInsets.only(top: 16.0),
+                  itemCount: sortedDates.length,
                   itemBuilder: (context, index) {
-                    final entry = entries[index];
-                    return ListTile(
-                      title: Text(entry.title),
-                      subtitle: Text('Amount: \$${entry.amount}\n${entry.description}'),
-                      trailing: Text(entry.date.toString()),
+                    final date = sortedDates[index];
+                    final entriesForDate = groupedEntries[date]!;
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
+                          child: Row(
+                            children: [
+                              Image.network(
+                                AppIcons.calendario,
+                                width: 24,
+                                height: 24,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  date,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        for (var entry in entriesForDate) 
+                          Card(
+                            margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                            elevation: 6,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.all(16),
+                              leading: ClipRRect(
+                                child: Image.network(
+                                  AppIcons.getUrlById(entry.iconId),
+                                  width: 50,
+                                  height: 50,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              title: Text(
+                                entry.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4.0),
+                                    child: Text(
+                                      '${(entry.amount) >= 0 ? '+' : '-'} ${NumberFormat.simpleCurrency(locale: 'pt_BR').format(entry.amount.abs())}',
+                                      style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                        color: (entry.amount) >= 0 ? Colors.green : Colors.red,
+                                      ),
+                                    ),
+                                  ),
+                                  Text(
+                                    entry.description,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                      ],
                     );
                   },
                 );
@@ -110,15 +195,13 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
           ),
         ],
       ),
-
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
-        onPressed: _addEntry,
+        onPressed: _showAddEntryDialog,
         shape: const CircleBorder(),
-        tooltip: 'Add Entry',
+        tooltip: 'Novo lançamento',
         child: const Icon(Icons.add),
       ),
-
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           boxShadow: [
@@ -129,7 +212,6 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
             ),
           ],
         ),
-
         child: BottomNavigationBar(
           backgroundColor: AppColors.scaffoldBackground,
           selectedItemColor: AppColors.primary,
@@ -137,16 +219,16 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
           unselectedItemColor: AppColors.textSecondary,
           items: const [
             BottomNavigationBarItem(
-              icon: Icon(Icons.search),
-              label: 'Search',
+              icon: Icon(Icons.receipt_long),
+              label: 'Lançamentos',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.home),
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.settings),
-              label: 'Settings',
+              icon: Icon(Icons.pie_chart),
+              label: 'Gráficos',
             ),
           ],
         ),

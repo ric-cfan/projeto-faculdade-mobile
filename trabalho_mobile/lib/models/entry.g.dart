@@ -21,7 +21,7 @@ class EntryAdapter extends TypeAdapter<Entry> {
       description: fields[1] as String,
       amount: fields[2] as double,
       date: fields[3] as DateTime,
-      iconId: fields[4] as int,
+      iconId: fields[4] as String,
     );
   }
 

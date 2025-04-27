@@ -18,7 +18,7 @@ class Entry {
   final DateTime date;
 
   @HiveField(4)
-  final int iconId;
+  final String iconId;
 
   Entry({
     required this.title,
