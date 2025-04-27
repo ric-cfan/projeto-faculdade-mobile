@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:trabalho_mobile/models/entry.dart';
+import 'package:trabalho_mobile/utils/app_colors.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-void main() => runApp(const ScaffoldExampleApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+
+  Hive.registerAdapter(EntryAdapter());
+  await Hive.openBox<Entry>('entries');
+
+  runApp(const ScaffoldExampleApp());
+}
 
 class ScaffoldExampleApp extends StatelessWidget {
   const ScaffoldExampleApp({super.key});
@@ -19,55 +31,125 @@ class ScaffoldExample extends StatefulWidget {
 }
 
 class _ScaffoldExampleState extends State<ScaffoldExample> {
-  int _count = 0;
-  int _selectedIndex = 0; // Para acompanhar qual item está selecionado no BottomNavigationBar
+  late Box<Entry> _entriesBox;
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index; // Muda o índice quando um botão for pressionado
-    });
+  @override
+  void initState() {
+    super.initState();
+    _entriesBox = Hive.box<Entry>('entries');
+  }
+
+  void _addEntry() {
+    final entry = Entry(
+      title: 'Teste',
+      description: 'New Entry',
+      amount: 20.0,
+      date: DateTime.now(),
+      iconId: 1,
+    );
+    _entriesBox.add(entry);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Fingest'),
-        foregroundColor: Color.fromARGB(255, 216, 230, 242),
-        backgroundColor: const Color.fromARGB(255, 13, 33, 62)
-      ),
-      body: Center(
-        child: Text('You have pressed the button $_count times.'),
-      ),
-      backgroundColor: const Color.fromARGB(255, 9, 23, 42),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Color(0xFF88C9F2),
-        onPressed: () => setState(() => _count++),
-        tooltip: 'Increment Counter',
-        child: const Icon(Icons.add),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color.fromARGB(255, 13, 33, 62),
-        selectedItemColor: Color.fromARGB(255, 42, 122, 191),
-        unselectedItemColor: Color.fromARGB(255, 216, 230, 242),
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: const <BottomNavigationBarItem>[
-          
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search, color: Color.fromARGB(255, 216, 230, 242)),
-            label: 'Search',
-            
+      backgroundColor: AppColors.background,
+
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.background,
+            boxShadow: [
+              BoxShadow(
+                color: Color.fromARGB(38, 0, 0, 0),
+                blurRadius: 15,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home, color: Color.fromARGB(255, 216, 230, 242)),
-            label: 'Home',
+          child: const SafeArea(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Fingest',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings, color: Color.fromARGB(255, 216, 230, 242)),
-            label: 'Settings',
+        ),
+      ),
+
+      body: Column(
+        children: [
+          Expanded(
+            child: ValueListenableBuilder(
+              valueListenable: _entriesBox.listenable(),
+              builder: (context, Box<Entry> box, child) {
+                final entries = box.values.toList();
+                return ListView.builder(
+                  itemCount: entries.length,
+                  itemBuilder: (context, index) {
+                    final entry = entries[index];
+                    return ListTile(
+                      title: Text(entry.title),
+                      subtitle: Text('Amount: \$${entry.amount}\n${entry.description}'),
+                      trailing: Text(entry.date.toString()),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
+      ),
+
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: AppColors.primary,
+        onPressed: _addEntry,
+        shape: const CircleBorder(),
+        tooltip: 'Add Entry',
+        child: const Icon(Icons.add),
+      ),
+
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Color.fromARGB(38, 0, 0, 0),
+              blurRadius: 15,
+              offset: Offset(0, -4),
+            ),
+          ],
+        ),
+
+        child: BottomNavigationBar(
+          backgroundColor: AppColors.scaffoldBackground,
+          selectedItemColor: AppColors.primary,
+          selectedIconTheme: IconThemeData(color: AppColors.primary),
+          unselectedItemColor: AppColors.textSecondary,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.search),
+              label: 'Search',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.settings),
+              label: 'Settings',
+            ),
+          ],
+        ),
       ),
     );
   }
