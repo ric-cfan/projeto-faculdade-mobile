@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:trabalho_mobile/components/entry/add_entry_dialog.dart';
 import 'package:trabalho_mobile/utils/app_icons.dart';
+import 'package:trabalho_mobile/database/entries_service.dart'; // importa o service
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -91,14 +92,11 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
               valueListenable: _entriesBox.listenable(),
               builder: (context, Box<Entry> box, child) {
                 final entries = box.values.toList();
-          
+
                 Map<String, List<Entry>> groupedEntries = {};
                 for (var entry in entries) {
                   String formattedDate = DateFormat('dd/MM/yyyy').format(entry.date);
-                  if (!groupedEntries.containsKey(formattedDate)) {
-                    groupedEntries[formattedDate] = [];
-                  }
-                  groupedEntries[formattedDate]!.add(entry);
+                  groupedEntries.putIfAbsent(formattedDate, () => []).add(entry);
                 }
 
                 List<String> sortedDates = groupedEntries.keys.toList()
@@ -115,7 +113,8 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
+                          padding: const EdgeInsets.only(
+                              left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
                           child: Row(
                             children: [
                               Image.network(
@@ -137,9 +136,10 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
                             ],
                           ),
                         ),
-                        for (var entry in entriesForDate) 
+                        for (var entry in entriesForDate)
                           Card(
-                            margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                            margin: const EdgeInsets.symmetric(
+                                vertical: 6, horizontal: 16),
                             elevation: 6,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
@@ -167,11 +167,13 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 4.0),
                                     child: Text(
-                                      '${(entry.amount) >= 0 ? '+' : '-'} ${NumberFormat.simpleCurrency(locale: 'pt_BR').format(entry.amount.abs())}',
+                                      '${entry.amount >= 0 ? '+' : '-'} ${NumberFormat.simpleCurrency(locale: 'pt_BR').format(entry.amount.abs())}',
                                       style: TextStyle(
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
-                                        color: (entry.amount) >= 0 ? Colors.green : Colors.red,
+                                        color: entry.amount >= 0
+                                            ? Colors.green
+                                            : Colors.red,
                                       ),
                                     ),
                                   ),
@@ -181,6 +183,34 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
                                       fontSize: 14,
                                       color: Colors.grey,
                                     ),
+                                  ),
+                                ],
+                              ),
+                              trailing: PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert),
+                                onSelected: (value) async {
+                                  switch (value) {
+                                    case 'atualizar':
+                                      // lógica de atualização...
+                                      break;
+                                    case 'excluir':
+                                      // encontra índice e chama o service
+                                      final all = _entriesBox.values.toList();
+                                      final idx = all.indexOf(entry);
+                                      if (idx != -1) {
+                                        await EntriesService.deleteEntry(idx);
+                                      }
+                                      break;
+                                  }
+                                },
+                                itemBuilder: (_) => [
+                                  const PopupMenuItem(
+                                    value: 'atualizar',
+                                    child: Text('Atualizar'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'excluir',
+                                    child: Text('Excluir'),
                                   ),
                                 ],
                               ),
