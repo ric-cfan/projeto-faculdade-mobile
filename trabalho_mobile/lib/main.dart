@@ -5,33 +5,35 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:trabalho_mobile/components/entry/add_entry_dialog.dart';
 import 'package:trabalho_mobile/utils/app_icons.dart';
-import 'package:trabalho_mobile/database/entries_service.dart'; // importa o service
+import 'package:trabalho_mobile/database/entries_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Hive.initFlutter();
-
   Hive.registerAdapter(EntryAdapter());
   await Hive.openBox<Entry>('entries');
-
   runApp(const ScaffoldExampleApp());
 }
 
 class ScaffoldExampleApp extends StatelessWidget {
-  const ScaffoldExampleApp({super.key});
+  const ScaffoldExampleApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(home: ScaffoldExample());
+    return MaterialApp(
+      home: ScaffoldExample(),
+      theme: ThemeData(
+        scaffoldBackgroundColor: AppColors.scaffoldBackground,
+      ),
+    );
   }
 }
 
 class ScaffoldExample extends StatefulWidget {
-  const ScaffoldExample({super.key});
+  const ScaffoldExample({Key? key}) : super(key: key);
 
   @override
-  State<ScaffoldExample> createState() => _ScaffoldExampleState();
+  _ScaffoldExampleState createState() => _ScaffoldExampleState();
 }
 
 class _ScaffoldExampleState extends State<ScaffoldExample> {
@@ -43,17 +45,20 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
     _entriesBox = Hive.box<Entry>('entries');
   }
 
-  void _showAddEntryDialog() {
+  void _showAddEntryDialog([Entry? entry, int? index]) {
     showDialog(
       context: context,
-      builder: (context) => AddEntryDialog(entriesBox: _entriesBox),
+      builder: (_) => AddEntryDialog(
+        entriesBox: _entriesBox,
+        entryToEdit: entry,
+        entryIndex: index,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(kToolbarHeight),
         child: Container(
@@ -67,9 +72,9 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
               ),
             ],
           ),
-          child: const SafeArea(
+          child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -85,145 +90,144 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ValueListenableBuilder(
-              valueListenable: _entriesBox.listenable(),
-              builder: (context, Box<Entry> box, child) {
-                final entries = box.values.toList();
+      body: ValueListenableBuilder(
+        valueListenable: _entriesBox.listenable(),
+        builder: (context, Box<Entry> box, _) {
+          final entries = box.values.toList();
+          
+          final Map<String, List<Entry>> grouped = {};
+          for (var e in entries) {
+            final date = DateFormat('dd/MM/yyyy').format(e.date);
+            grouped.putIfAbsent(date, () => []).add(e);
+          }
+          final dates = grouped.keys.toList()..sort((a, b) => b.compareTo(a));
 
-                Map<String, List<Entry>> groupedEntries = {};
-                for (var entry in entries) {
-                  String formattedDate = DateFormat('dd/MM/yyyy').format(entry.date);
-                  groupedEntries.putIfAbsent(formattedDate, () => []).add(entry);
-                }
-
-                List<String> sortedDates = groupedEntries.keys.toList()
-                  ..sort((a, b) => b.compareTo(a));
-
-                return ListView.builder(
-                  padding: const EdgeInsets.only(top: 16.0),
-                  itemCount: sortedDates.length,
-                  itemBuilder: (context, index) {
-                    final date = sortedDates[index];
-                    final entriesForDate = groupedEntries[date]!;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(
-                              left: 16.0, right: 16.0, top: 8.0, bottom: 4.0),
-                          child: Row(
-                            children: [
-                              Image.network(
-                                AppIcons.calendario,
-                                width: 24,
-                                height: 24,
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  date,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+          return ListView(
+            padding: const EdgeInsets.only(top: 16),
+            children: [
+              for (var date in dates) ...[
+                
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    children: [
+                      Image.network(AppIcons.calendario, width: 24, height: 24),
+                      const SizedBox(width: 8),
+                      Text(
+                        date,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
                         ),
-                        for (var entry in entriesForDate)
-                          Card(
-                            margin: const EdgeInsets.symmetric(
-                                vertical: 6, horizontal: 16),
-                            elevation: 6,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                for (var entry in grouped[date]!)
+                  Builder(builder: (ctx) {
+                    final all = _entriesBox.values.toList();
+                    final idx = all.indexOf(entry);
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+                      elevation: 6,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Stack(
+                        children: [
+                          ListTile(
+                            contentPadding: const EdgeInsets.all(16),
+                            leading: Image.network(
+                              AppIcons.getUrlById(entry.iconId),
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
                             ),
-                            child: ListTile(
-                              contentPadding: const EdgeInsets.all(16),
-                              leading: ClipRRect(
-                                child: Image.network(
-                                  AppIcons.getUrlById(entry.iconId),
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                ),
+                            title: Text(
+                              entry.title,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
                               ),
-                              title: Text(
-                                entry.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(bottom: 4.0),
-                                    child: Text(
-                                      '${entry.amount >= 0 ? '+' : '-'} ${NumberFormat.simpleCurrency(locale: 'pt_BR').format(entry.amount.abs())}',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: entry.amount >= 0
-                                            ? Colors.green
-                                            : Colors.red,
-                                      ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: Text(
+                                    '${entry.amount >= 0 ? '+' : '-'} ${NumberFormat.simpleCurrency(locale: 'pt_BR').format(entry.amount.abs())}',
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: entry.amount >= 0 ? Colors.green : Colors.red,
                                     ),
                                   ),
-                                  Text(
-                                    entry.description,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              trailing: PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert),
-                                onSelected: (value) async {
-                                  switch (value) {
-                                    case 'atualizar':
-                                      // lógica de atualização...
-                                      break;
-                                    case 'excluir':
-                                      // encontra índice e chama o service
-                                      final all = _entriesBox.values.toList();
-                                      final idx = all.indexOf(entry);
-                                      if (idx != -1) {
-                                        await EntriesService.deleteEntry(idx);
-                                      }
-                                      break;
-                                  }
-                                },
-                                itemBuilder: (_) => [
-                                  const PopupMenuItem(
-                                    value: 'atualizar',
-                                    child: Text('Atualizar'),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'excluir',
-                                    child: Text('Excluir'),
-                                  ),
-                                ],
-                              ),
+                                ),
+                                Text(
+                                  entry.description,
+                                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                                ),
+                              ],
                             ),
                           ),
-                      ],
+                          
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert),
+                              offset: const Offset(0, 8),
+                              onSelected: (value) async {
+                                if (value == 'atualizar') {
+                                  _showAddEntryDialog(entry, idx);
+                                } else if (value == 'excluir') {
+                                  final confirmed = await showDialog<bool>(
+                                    context: context,
+                                    builder: (c) => AlertDialog(
+                                      title: const Text('Confirmar exclusão'),
+                                      content: const Text('Deseja realmente excluir este lançamento?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () => Navigator.of(c).pop(false),
+                                          child: const Text('Cancelar'),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => Navigator.of(c).pop(true),
+                                          child: const Text('Excluir'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                  if (confirmed == true) {
+                                    await EntriesService.deleteEntry(idx);
+                                  }
+                                }
+                              },
+                              itemBuilder: (_) => [
+                                PopupMenuItem(
+                                  value: 'atualizar',
+                                  height: 32,
+                                  child: const Text('Atualizar'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'excluir',
+                                  height: 32,
+                                  child: const Text('Excluir'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+                  }),
+              ],
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: AppColors.primary,
@@ -232,36 +236,15 @@ class _ScaffoldExampleState extends State<ScaffoldExample> {
         tooltip: 'Novo lançamento',
         child: const Icon(Icons.add),
       ),
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Color.fromARGB(38, 0, 0, 0),
-              blurRadius: 15,
-              offset: Offset(0, -4),
-            ),
-          ],
-        ),
-        child: BottomNavigationBar(
-          backgroundColor: AppColors.scaffoldBackground,
-          selectedItemColor: AppColors.primary,
-          selectedIconTheme: IconThemeData(color: AppColors.primary),
-          unselectedItemColor: AppColors.textSecondary,
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.receipt_long),
-              label: 'Lançamentos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.home),
-              label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.pie_chart),
-              label: 'Gráficos',
-            ),
-          ],
-        ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: AppColors.scaffoldBackground,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textSecondary,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'Lançamentos'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.pie_chart), label: 'Gráficos'),
+        ],
       ),
     );
   }

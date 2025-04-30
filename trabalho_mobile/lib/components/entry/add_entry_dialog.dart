@@ -14,19 +14,25 @@ class IconOption {
 
 class AddEntryDialog extends StatefulWidget {
   final Box<Entry> entriesBox;
-  const AddEntryDialog({Key? key, required this.entriesBox}) : super(key: key);
+  final Entry? entryToEdit;
+  final int? entryIndex;
+
+  const AddEntryDialog({
+    Key? key,
+    required this.entriesBox,
+    this.entryToEdit,
+    this.entryIndex,
+  }) : super(key: key);
 
   @override
-  _AddEntryDialogState createState() => _AddEntryDialogState();
+  State<AddEntryDialog> createState() => _AddEntryDialogState();
 }
 
 class _AddEntryDialogState extends State<AddEntryDialog> {
-
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _amountController = TextEditingController();
   DateTime? selectedDate;
-
   int _sign = 1;
 
   final List<IconOption> icons = [
@@ -38,13 +44,31 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
   ];
 
   late final PageController _pageController;
-  int _selectedIndex = 0;
+  late int _selectedIndex;
+  final NumberFormat _amountFormat = NumberFormat.currency(
+    locale: 'pt_BR', symbol: '', decimalDigits: 2,
+  );
 
   @override
   void initState() {
     super.initState();
-
-    _selectedIndex = icons.length ~/ 2;
+   
+    if (widget.entryToEdit != null && widget.entryIndex != null) {
+      final e = widget.entryToEdit!;
+      _titleController.text = e.title;
+      _descriptionController.text = e.description;
+      _sign = e.amount >= 0 ? 1 : -1;
+      selectedDate = e.date;
+      _selectedIndex = icons.indexWhere((opt) => opt.id == e.iconId);
+      if (_selectedIndex < 0) _selectedIndex = icons.length ~/ 2;
+      
+      final absValue = e.amount.abs();
+      _amountController.text = _amountFormat.format(absValue);
+    } else {
+      
+      _selectedIndex = icons.length ~/ 2;
+      selectedDate = DateTime.now();
+    }
     _pageController = PageController(
       initialPage: _selectedIndex,
       viewportFraction: 0.3,
@@ -67,32 +91,20 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
       firstDate: DateTime(2000),
       lastDate: DateTime(2101),
     );
-    if (picked != null) {
-      setState(() => selectedDate = picked);
-    }
+    if (picked != null) setState(() => selectedDate = picked);
   }
 
-  void _toggleSign() {
-    setState(() {
-      _sign = -_sign;
-
-      final raw = _amountController.text.replaceAll(RegExp(r'[+\-]'), '');
-      _amountController.text = '${_sign > 0 ? '+' : '-'}$raw';
-      _amountController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _amountController.text.length),
-      );
-    });
-  }
+  void _toggleSign() => setState(() => _sign = -_sign);
 
   void _save() {
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
+    // Remove tudo que não for dígito
+    final digitsOnly = _amountController.text.replaceAll(RegExp(r'\D'), '');
+    final raw = double.tryParse(digitsOnly) ?? 0.0;
+    final amount = (raw / 100) * _sign;
 
-    final numericText = _amountController.text.replaceAll(RegExp(r'[^0-9.,]'), '');
-    final rawValue = double.tryParse(numericText.replaceAll(',', '.')) ?? 0.0;
-    final amount = rawValue * (_sign > 0 ? 1 : -1);
-
-    if (title.isEmpty || numericText.isEmpty) {
+    if (title.isEmpty || digitsOnly.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Título e Valor são obrigatórios.')),
       );
@@ -100,7 +112,6 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
     }
 
     final selectedId = icons[_selectedIndex].id;
-
     final newEntry = Entry(
       title: title,
       description: description,
@@ -109,7 +120,11 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
       iconId: selectedId,
     );
 
-    widget.entriesBox.add(newEntry);
+    if (widget.entryToEdit != null && widget.entryIndex != null) {
+      widget.entriesBox.putAt(widget.entryIndex!, newEntry);
+    } else {
+      widget.entriesBox.add(newEntry);
+    }
     Navigator.of(context).pop();
   }
 
@@ -126,19 +141,17 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-        
                 Text(
-                  'Novo Lançamento',
+                  widget.entryToEdit != null ? 'Editar Lançamento' : 'Novo Lançamento',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 16),
-
                 _buildTextField(_titleController, 'Título'),
                 const SizedBox(height: 10),
-
+                
                 TextField(
                   controller: _amountController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: TextInputType.number,
                   inputFormatters: [MoneyInputFormatter()],
                   decoration: InputDecoration(
                     labelText: 'Valor',
@@ -154,10 +167,8 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
                   ),
                 ),
                 const SizedBox(height: 10),
-
                 _buildTextField(_descriptionController, 'Descrição'),
                 const SizedBox(height: 10),
-
                 Row(
                   children: [
                     Expanded(
@@ -175,7 +186,6 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
                 const Text('Ícone'),
                 const SizedBox(height: 8),
                 SizedBox(
@@ -226,9 +236,7 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
                     },
                   ),
                 ),
-
                 const SizedBox(height: 24),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -280,11 +288,9 @@ class MoneyInputFormatter extends TextInputFormatter {
   TextEditingValue formatEditUpdate(
       TextEditingValue oldValue, TextEditingValue newValue) {
     final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
-    if (digits.isEmpty) return newValue;
-
+    if (digits.isEmpty) return oldValue;
     final value = double.parse(digits) / 100;
     final newText = _formatter.format(value);
-
     return TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(offset: newText.length),
