@@ -18,11 +18,11 @@ class AddEntryDialog extends StatefulWidget {
   final int? entryIndex;
 
   const AddEntryDialog({
-    Key? key,
+    super.key,
     required this.entriesBox,
     this.entryToEdit,
     this.entryIndex,
-  }) : super(key: key);
+  });
 
   @override
   State<AddEntryDialog> createState() => _AddEntryDialogState();
@@ -99,7 +99,7 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
   void _save() {
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
-    // Remove tudo que não for dígito
+ 
     final digitsOnly = _amountController.text.replaceAll(RegExp(r'\D'), '');
     final raw = double.tryParse(digitsOnly) ?? 0.0;
     final amount = (raw / 100) * _sign;
