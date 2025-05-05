@@ -34,7 +34,8 @@ class _EntriesViewStatefulState extends State<EntriesViewStateful> {
       body: ValueListenableBuilder<Box<Entry>>(
         valueListenable: widget.entriesBox.listenable(),
         builder: (context, box, _) {
-          final entries = box.values.toList();
+          final entries = box.values.toList()
+              ..sort((a, b) => b.date.compareTo(a.date));
           final Map<String, List<Entry>> groupedEntries = {};
 
           for (var e in entries) {

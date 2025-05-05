@@ -36,6 +36,7 @@ class _AddEntryDialogState extends State<AddEntryDialog> {
   int _sign = 1;
 
   final List<IconOption> icons = [
+    IconOption(AppIcons.entrada, "Entrada"),
     IconOption(AppIcons.investimentoId, 'Investimento'),
     IconOption(AppIcons.alimentacaoId, 'Alimentação'),
     IconOption(AppIcons.cartaoId, 'Cartão'),

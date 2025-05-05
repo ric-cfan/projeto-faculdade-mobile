@@ -10,6 +10,9 @@ class AppIcons {
   static const String contasId        = "61247";
   static const String cartaoId        = "So9Gvu5Hcyjh";
   static const String calendarioId    = "84997";
+  static const String graficoUp       = "59811";
+  static const String graficoDown     = "59774";
+  static const String entrada         = "7977";
 
   static String getUrlById(String id) {
     return "$_baseUrl?size=$_iconSize&id=$id&format=png&color=$_iconColor";

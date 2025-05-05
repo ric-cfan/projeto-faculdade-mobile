@@ -26,7 +26,7 @@ class CustomNavigationBar extends StatelessWidget {
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.home),
-          label: 'Home',
+          label: 'Início',
         ),
         BottomNavigationBarItem(
           icon: Icon(Icons.pie_chart),
